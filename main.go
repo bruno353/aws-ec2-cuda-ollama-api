@@ -1,110 +1,125 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
-	"io"
-	"log"
-	"net/http"
-	"net/http/httputil"
-	"net/url"
-	"os"
+    "bytes"
+    "fmt"
+    "io"
+    "log"
+    "net"
+    "net/http"
+    "net/http/httputil"
+    "net/url"
+    "os"
+    "path/filepath"
 )
 
 const (
-	ollamaURL = "http://localhost:11434"
+    ollamaURL = "http://localhost:11434"
 )
 
 var apiKey string
 
 func main() {
-	apiKey = os.Getenv("API_KEY")
-	if apiKey == "" {
-		log.Fatal("API_KEY environment variable not set")
-	}
+    apiKey = os.Getenv("API_KEY")
+    if apiKey == "" {
+        log.Fatal("API_KEY environment variable not set")
+    }
 
-	http.HandleFunc("/v1/", handleProxy)
-	fmt.Println("Server is running on 0.0.0.0:8080")
-	log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
+    webroot := "/var/www/html"
+
+    http.Handle("/.well-known/", http.StripPrefix("/.well-known/", http.FileServer(http.Dir(filepath.Join(webroot, ".well-known")))))
+
+    // Handler principal
+    http.HandleFunc("/v1/", handleProxy)
+
+    fmt.Println("Server is running on :443")
+
+    certFile := "/etc/letsencrypt/live/api.seudominio.com/fullchain.pem"
+    keyFile := "/etc/letsencrypt/live/api.seudominio.com/privkey.pem"
+
+    if _, err := os.Stat(certFile); os.IsNotExist(err) {
+        log.Fatalf("Cert not found: %s", certFile)
+    }
+    if _, err := os.Stat(keyFile); os.IsNotExist(err) {
+        log.Fatalf("Cert pk not found: %s", keyFile)
+    }
+
+    log.Fatal(http.ListenAndServeTLS(":443", certFile, keyFile, nil))
 }
 
 func handleProxy(w http.ResponseWriter, r *http.Request) {
-	// Check API key
-	if !validateAPIKey(r) {
-		http.Error(w, "Unauthorized", http.StatusUnauthorized)
-		return
-	}
+    ip, _, err := net.SplitHostPort(r.RemoteAddr)
+    if err != nil {
+        log.Printf("Error RemoteAddr: %v", err)
+        ip = r.RemoteAddr
+    }
+    log.Printf("Server called from IP: %s", ip)
 
-	log.Printf("Received request: %s %s", r.Method, r.URL.Path)
+    if !validateAPIKey(r) {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
 
-	// Log the request body
-	logRequest(r)
+    log.Printf("Received requisition: %s %s", r.Method, r.URL.Path)
 
-	// Parse the URL of the Ollama server
-	target, err := url.Parse(ollamaURL)
-	if err != nil {
-		http.Error(w, "Error parsing Ollama URL", http.StatusInternalServerError)
-		return
-	}
+    logRequest(r)
 
-	// Create a reverse proxy
-	proxy := httputil.NewSingleHostReverseProxy(target)
+    target, err := url.Parse(ollamaURL)
+    if err != nil {
+        http.Error(w, "Error parsing Ollama URL", http.StatusInternalServerError)
+        return
+    }
 
-	// Modify the director to handle streaming
-	originalDirector := proxy.Director
-	proxy.Director = func(req *http.Request) {
-		originalDirector(req)
-		req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
-		req.Host = target.Host
+    proxy := httputil.NewSingleHostReverseProxy(target)
 
-		// Check if the client requested streaming
-		if req.Header.Get("Accept") == "text/event-stream" {
-			w.Header().Set("Content-Type", "text/event-stream")
-			w.Header().Set("Cache-Control", "no-cache")
-			w.Header().Set("Connection", "keep-alive")
-		}
-	}
+    originalDirector := proxy.Director
+    proxy.Director = func(req *http.Request) {
+        originalDirector(req)
+        req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
+        req.Host = target.Host
 
-	// Use a custom transport to handle streaming responses
-	proxy.Transport = &streamTransport{http.DefaultTransport}
+        if req.Header.Get("Accept") == "text/event-stream" {
+            w.Header().Set("Content-Type", "text/event-stream")
+            w.Header().Set("Cache-Control", "no-cache")
+            w.Header().Set("Connection", "keep-alive")
+        }
+    }
 
-	proxy.ServeHTTP(w, r)
+    proxy.Transport = &streamTransport{http.DefaultTransport}
+
+    proxy.ServeHTTP(w, r)
 }
 
 func validateAPIKey(r *http.Request) bool {
-	// Check for API key in Authorization header
-	authHeader := r.Header.Get("Authorization")
-	return authHeader == "Bearer "+apiKey
+    authHeader := r.Header.Get("Authorization")
+    return authHeader == "Bearer "+apiKey
 }
 
 type streamTransport struct {
-	http.RoundTripper
+    http.RoundTripper
 }
 
 func (t *streamTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	resp, err := t.RoundTripper.RoundTrip(req)
-	if err != nil {
-		return nil, err
-	}
+    resp, err := t.RoundTripper.RoundTrip(req)
+    if err != nil {
+        return nil, err
+    }
 
-	if req.Header.Get("Accept") == "text/event-stream" {
-		resp.Header.Set("Content-Type", "text/event-stream")
-	}
+    if req.Header.Get("Accept") == "text/event-stream" {
+        resp.Header.Set("Content-Type", "text/event-stream")
+    }
 
-	return resp, nil
+    return resp, nil
 }
 
 func logRequest(r *http.Request) {
-	// Read the body
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		log.Printf("Error reading body: %v", err)
-		return
-	}
+    body, err := io.ReadAll(r.Body)
+    if err != nil {
+        log.Printf("Erro ao ler o corpo da requisição: %v", err)
+        return
+    }
 
-	// Log the body
-	log.Printf("Request Body: %s", string(body))
+    log.Printf("Corpo da Requisição: %s", string(body))
 
-	// Restore the body to its original state
-	r.Body = io.NopCloser(bytes.NewBuffer(body))
+    r.Body = io.NopCloser(bytes.NewBuffer(body))
 }
