@@ -34,8 +34,8 @@ func main() {
 
     fmt.Println("Server is running on :443")
 
-    certFile := "/etc/letsencrypt/live/api.seudominio.com/fullchain.pem"
-    keyFile := "/etc/letsencrypt/live/api.seudominio.com/privkey.pem"
+    certFile := "/etc/letsencrypt/live/llm.techreport.ai/fullchain.pem"
+    keyFile := "/etc/letsencrypt/live/llm.techreport.ai/privkey.pem"
 
     if _, err := os.Stat(certFile); os.IsNotExist(err) {
         log.Fatalf("Cert not found: %s", certFile)
@@ -115,11 +115,11 @@ func (t *streamTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 func logRequest(r *http.Request) {
     body, err := io.ReadAll(r.Body)
     if err != nil {
-        log.Printf("Erro ao ler o corpo da requisição: %v", err)
+        log.Printf("Error reading req: %v", err)
         return
     }
 
-    log.Printf("Corpo da Requisição: %s", string(body))
+    log.Printf("Req body: %s", string(body))
 
     r.Body = io.NopCloser(bytes.NewBuffer(body))
 }
