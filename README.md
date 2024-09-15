@@ -52,7 +52,7 @@ cd aws-ec2-cuda-ollama
 ollama serve 
 ```
 
-## 8. Pull Gemma Model
+## 8. Pull Your Model
 
 ```
 ollama pull gemma2:2b
@@ -64,7 +64,8 @@ ollama pull gemma2:2b
 go run main.go
 ```
 
-## 10. Set Up Systemd Service (Optional)
+## 10. Set Up Systemd Service - Required for setting up the ENV
+# Either you can run export ```API_KEY="your_secure_api_key_here" ``` on your OS or set the env in this server script.
 
 Create service file:
 ```
@@ -81,6 +82,7 @@ After=network.target
 ExecStart=/usr/bin/go run /home/ubuntu/aws-ec2-cuda-ollama/main.go
 WorkingDirectory=/home/ubuntu/aws-ec2-cuda-ollama
 User=ubuntu
+Environment=API_KEY=your_secure_api_key_here
 Restart=always
 
 [Install]
