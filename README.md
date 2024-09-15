@@ -1,6 +1,6 @@
 # AWS EC2 CUDA Ollama Setup
 
-This guide outlines the steps to set up an Ollama API service on an AWS EC2 instance with CUDA support.
+Forked from to ensure API security by inputting an ENV for the bearer auth, make sure to set the env on your OS system
 
 ## 1. Launch EC2 Instance
 
