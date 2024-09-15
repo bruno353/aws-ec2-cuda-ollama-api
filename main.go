@@ -8,14 +8,21 @@ import (
 	"net/http"
 	"net/http/httputil"
 	"net/url"
+	"os"
 )
 
 const (
 	ollamaURL = "http://localhost:11434"
-	apiKey    = "demo"
 )
 
+var apiKey string
+
 func main() {
+	apiKey = os.Getenv("API_KEY")
+	if apiKey == "" {
+		log.Fatal("API_KEY environment variable not set")
+	}
+
 	http.HandleFunc("/v1/", handleProxy)
 	fmt.Println("Server is running on 0.0.0.0:8080")
 	log.Fatal(http.ListenAndServe("0.0.0.0:8080", nil))
