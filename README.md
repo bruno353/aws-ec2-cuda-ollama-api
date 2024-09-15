@@ -42,8 +42,8 @@ curl -fsSL https://ollama.com/install.sh | sh
 ## 6. Clone Repository
 
 ```
-git clone https://github.com/developersdigest/aws-ec2-cuda-ollama.git
-cd aws-ec2-cuda-ollama
+git clone https://github.com/developersdigest/aws-ec2-cuda-ollama-api.git
+cd aws-ec2-cuda-ollama-api
 ```
 
 ## 7. Start Ollama in Background
@@ -56,12 +56,6 @@ ollama serve
 
 ```
 ollama pull gemma2:2b
-```
-
-## 9. Run Go Application
-
-```
-go run main.go
 ```
 
 ## 10. Set Up Systemd Service - Required for setting up the ENV
@@ -79,8 +73,8 @@ Description=Ollama API Service
 After=network.target
 
 [Service]
-ExecStart=/usr/bin/go run /home/ubuntu/aws-ec2-cuda-ollama/main.go
-WorkingDirectory=/home/ubuntu/aws-ec2-cuda-ollama
+ExecStart=/usr/bin/go run /home/ubuntu/aws-ec2-cuda-ollama-api/main.go
+WorkingDirectory=/home/ubuntu/aws-ec2-cuda-ollama-api
 User=ubuntu
 Environment=API_KEY=your_secure_api_key_here
 Restart=always
