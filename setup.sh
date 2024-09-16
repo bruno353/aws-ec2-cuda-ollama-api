@@ -12,7 +12,7 @@ APP_DIR="/opt/llm-app"
 DOMAIN_NAME="llm.techreport.ai"  # Substitua pelo seu domínio
 API_KEY="sua_chave_de_api_aqui"  # Substitua pela sua chave de API
 EMAIL="blaureanosantos@gmail.com"    # Substitua pelo seu email
-MODEL_NAME="llama3.1:8b"              # Nome do modelo Ollama a ser baixado
+MODEL_NAME="gemma2:2b"              # Nome do modelo Ollama a ser baixado
 
 # Atualiza o sistema
 apt update && apt upgrade -y
