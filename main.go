@@ -17,9 +17,7 @@ const (
 )
 
 var (
-    apiKey   string
-    certFile string
-    keyFile  string
+    apiKey string
 )
 
 func main() {
@@ -28,23 +26,12 @@ func main() {
         log.Fatal("API_KEY environment variable not set")
     }
 
-    certFile = os.Getenv("CERT_FILE")
-    keyFile = os.Getenv("KEY_FILE")
-    if certFile == "" || keyFile == "" {
-        log.Fatal("CERT_FILE or KEY_FILE environment variable not set")
-    }
-
     // Handler principal
     http.HandleFunc("/v1/", handleProxy)
 
-    // Porta interna do aplicativo
-    go func() {
-        fmt.Println("Server is running on :8080")
-        log.Fatal(http.ListenAndServe(":8080", nil))
-    }()
-
-    // Mantém o programa em execução
-    select {}
+    // Inicia o servidor na porta 8080
+    fmt.Println("Server is running on :8080")
+    log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
 func handleProxy(w http.ResponseWriter, r *http.Request) {
