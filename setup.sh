@@ -1,8 +1,8 @@
 #!/bin/bash
 
 # Verifica se o script está sendo executado como root
-if [ "$EUID" -ne 0 ]; then
-  echo "Por favor, execute como root."
+if [ "$EUID" -ne 0 ]
+  then echo "Por favor, execute como root."
   exit
 fi
 
@@ -47,6 +47,9 @@ if ! command -v ollama &> /dev/null; then
     echo "Erro: Ollama não foi instalado corretamente."
     exit 1
 fi
+
+# Baixa o modelo necessário para o Ollama
+ollama pull "$MODEL_NAME"
 
 # Configura o Ollama como um serviço systemd
 cat > /etc/systemd/system/ollama.service <<EOL
@@ -219,17 +222,5 @@ EOL
 
 # Testa a configuração do Nginx e reinicia o serviço
 nginx -t && systemctl restart nginx
-
-# Baixa o modelo necessário para o Ollama
-ollama pull "$MODEL_NAME"
-
-# Verifica se o modelo foi baixado corretamente
-if ! ollama list | grep "$MODEL_NAME"; then
-    echo "Erro: o modelo $MODEL_NAME não foi baixado corretamente."
-    exit 1
-fi
-
-# Reinicia o serviço Ollama para garantir que o modelo seja carregado
-systemctl restart ollama.service
 
 echo "Configuração concluída com sucesso!"
