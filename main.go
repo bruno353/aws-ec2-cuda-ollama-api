@@ -10,14 +10,17 @@ import (
     "net/http/httputil"
     "net/url"
     "os"
-    "path/filepath"
 )
 
 const (
     ollamaURL = "http://localhost:11434"
 )
 
-var apiKey string
+var (
+    apiKey   string
+    certFile string
+    keyFile  string
+)
 
 func main() {
     apiKey = os.Getenv("API_KEY")
@@ -25,26 +28,23 @@ func main() {
         log.Fatal("API_KEY environment variable not set")
     }
 
-    webroot := "/var/www/html"
-
-    http.Handle("/.well-known/", http.StripPrefix("/.well-known/", http.FileServer(http.Dir(filepath.Join(webroot, ".well-known")))))
+    certFile = os.Getenv("CERT_FILE")
+    keyFile = os.Getenv("KEY_FILE")
+    if certFile == "" || keyFile == "" {
+        log.Fatal("CERT_FILE or KEY_FILE environment variable not set")
+    }
 
     // Handler principal
     http.HandleFunc("/v1/", handleProxy)
 
-    fmt.Println("Server is running on :443")
+    // Porta interna do aplicativo
+    go func() {
+        fmt.Println("Server is running on :8080")
+        log.Fatal(http.ListenAndServe(":8080", nil))
+    }()
 
-    certFile := "/etc/letsencrypt/live/llm.techreport.ai/fullchain.pem"
-    keyFile := "/etc/letsencrypt/live/llm.techreport.ai/privkey.pem"
-
-    if _, err := os.Stat(certFile); os.IsNotExist(err) {
-        log.Fatalf("Cert not found: %s", certFile)
-    }
-    if _, err := os.Stat(keyFile); os.IsNotExist(err) {
-        log.Fatalf("Cert pk not found: %s", keyFile)
-    }
-
-    log.Fatal(http.ListenAndServeTLS(":443", certFile, keyFile, nil))
+    // Mantém o programa em execução
+    select {}
 }
 
 func handleProxy(w http.ResponseWriter, r *http.Request) {
@@ -60,7 +60,7 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    log.Printf("Received requisition: %s %s", r.Method, r.URL.Path)
+    log.Printf("Received request: %s %s", r.Method, r.URL.Path)
 
     logRequest(r)
 
@@ -77,12 +77,6 @@ func handleProxy(w http.ResponseWriter, r *http.Request) {
         originalDirector(req)
         req.Header.Set("X-Forwarded-Host", req.Header.Get("Host"))
         req.Host = target.Host
-
-        if req.Header.Get("Accept") == "text/event-stream" {
-            w.Header().Set("Content-Type", "text/event-stream")
-            w.Header().Set("Cache-Control", "no-cache")
-            w.Header().Set("Connection", "keep-alive")
-        }
     }
 
     proxy.Transport = &streamTransport{http.DefaultTransport}
@@ -115,11 +109,11 @@ func (t *streamTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 func logRequest(r *http.Request) {
     body, err := io.ReadAll(r.Body)
     if err != nil {
-        log.Printf("Error reading req: %v", err)
+        log.Printf("Error reading request: %v", err)
         return
     }
 
-    log.Printf("Req body: %s", string(body))
+    log.Printf("Request body: %s", string(body))
 
     r.Body = io.NopCloser(bytes.NewBuffer(body))
 }
